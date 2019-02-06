@@ -53,4 +53,4 @@ stages:
   # - docs
 
 notifications:
-email: false
+  email: false
