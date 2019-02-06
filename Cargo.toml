@@ -1,0 +1,7 @@
+[package]
+name = "bathpack"
+version = "0.1.0"
+authors = ["Søren Mortensen <soren@sorenmortensen.com>"]
+edition = "2018"
+
+[dependencies]
