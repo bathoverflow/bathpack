@@ -18,6 +18,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
@@ -26,23 +27,24 @@ use std::path::Path;
 /// Specifies source & destination locations for files, and user information.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Config {
-    /// Details about the user.
-    pub user: User,
+    /// The user's University of Bath username.
+    username: String,
+    sources: BTreeMap<String, Source>,
 }
 
 impl Config {
     /// Attempt to parse a `Config` from a string containing some TOML data.
     pub fn parse<T>(toml_str: T) -> Result<Config>
-    where
-        T: AsRef<str>,
+        where
+            T: AsRef<str>,
     {
         toml::from_str(toml_str.as_ref()).map_err(|e| e.into())
     }
 
     /// Attempt to parse a `Config` from a file containing TOML data at the location `path`.
     pub fn parse_file<P>(path: P) -> Result<Config>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let mut file = File::open(path)?;
 
@@ -53,11 +55,14 @@ impl Config {
     }
 }
 
-/// Details about the user.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct User {
-    /// The user's University of Bath username.
-    pub username: String,
+#[serde(untagged)]
+pub enum Source {
+    Folder {
+        path: String,
+        pattern: String,
+    },
+    File(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -100,53 +105,31 @@ mod tests {
     #[test]
     fn parse_str() {
         let toml_str = r#"
-            [user]
             username = "user987"
+
+            [sources]
+            test-folder = { path = "test_path", pattern = "test_pattern" }
+            test-file = "test_file_name"
         "#;
 
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_ok());
 
         let config = decoded.unwrap();
-        assert_eq!(config.user.username, "user987".to_string());
+        assert_eq!(config.username, "user987".to_string());
     }
 
-    /// Test that a configuration file with no value for `user.username` does not successfully
+    /// Test that a configuration file with no value for `username` does not successfully
     /// parse.
     #[test]
     fn missing_username() {
         let toml_str = r#"
-            [user]
+            [sources]
+            test-folder = { path = "test_path", pattern = "test_pattern" }
+            test-file = "test_file_name"
         "#;
 
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_err());
-    }
-
-    /// Test that a configuration file missing the entire `[user]` table does not successfully
-    /// parse.
-    #[test]
-    fn missing_user_table() {
-        let toml_str = r#"
-        "#;
-
-        let decoded: Result<Config> = Config::parse(toml_str);
-        assert!(decoded.is_err());
-    }
-
-    /// Test that a correct configuration file string succeeds in being parsed and contains correct
-    /// values.
-    #[test]
-    fn parse_file() {
-        let toml_str = r#"
-            [user]
-            username = "user987"
-        "#;
-
-        let decoded: Result<Config> = Config::parse(toml_str);
-        assert!(decoded.is_ok());
-
-        let config = decoded.unwrap();
-        assert_eq!(config.user.username, "user987".to_string());
     }
 }

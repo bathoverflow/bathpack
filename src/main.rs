@@ -27,4 +27,7 @@ fn main() {
     config_path.push("bathpack.toml");
 
     let config = Config::parse_file(config_path).expect("Could not read bathpack.toml");
+    println!("{:#?}", config);
+
+    println!("{}", toml::to_string(&config).unwrap());
 }
