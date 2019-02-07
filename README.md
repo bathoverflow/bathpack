@@ -32,12 +32,13 @@ following...
 username = "abc123"
 
 [source]
-src = { path = "src", pattern = "*.java" }
+root = "."
+src = { path = "{root}/src", pattern = "*.java" }
 
 [destination]
-name = "SRPN-{username}"
+root = "project-{username}"
 archive = true
-src = "{destination}"
+src = "{root}"
 ```
 
 > Note: This is a provisional format for `bathpack.toml`, and will likely change.
