@@ -21,11 +21,14 @@ use serde::Deserialize;
 /// Specifies source & destination locations for files, and user information.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct Config {
+    /// Details about the user.
     user: User,
 }
 
+/// Details about the user.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct User {
+    /// The user's University of Bath username.
     username: String,
 }
 
@@ -33,6 +36,8 @@ pub struct User {
 mod tests {
     use super::*;
 
+    /// Test that a correct configuration file string succeeds in being parsed and contains correct
+    /// values.
     #[test]
     fn deserialize() {
         let toml_str = r#"
@@ -48,6 +53,8 @@ mod tests {
         assert_eq!(config.user.username, "user987".to_string());
     }
 
+    /// Test that a configuration file with no value for `user.username` does not successfully
+    /// parse.
     #[test]
     fn missing_username() {
         let toml_str = r#"
@@ -58,7 +65,9 @@ mod tests {
 
         assert!(decoded.is_err());
     }
-
+    
+    /// Test that a configuration file missing the entire `[user]` table does not successfully
+    /// parse.
     #[test]
     fn missing_user_table() {
         let toml_str = r#"
