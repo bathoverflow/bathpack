@@ -21,7 +21,6 @@ following...
 .
 ├── bathpack.toml
 └── src
-    ├── Project.class
     └── Project.java
 ```
 
@@ -52,6 +51,5 @@ src = "{root}"
 │   └── Project.java
 ├── project-abc123.zip
 └── src
-    ├── Project.class
     └── Project.java
 ```
