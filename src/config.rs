@@ -34,9 +34,9 @@ impl Config {
     /// Attempt to parse a `Config` from a string containing some TOML data.
     pub fn parse<T>(toml_str: T) -> Result<Config>
     where
-        T: Into<String>,
+        T: AsRef<str>,
     {
-        toml::from_str(&toml_str.into()).map_err(|e| e.into())
+        toml::from_str(toml_str.as_ref()).map_err(|e| e.into())
     }
 
     /// Attempt to parse a `Config` from a file containing TOML data at the location `path`.
