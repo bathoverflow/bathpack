@@ -19,6 +19,7 @@ following...
 
 ```
 .
+├── README.md
 ├── bathpack.toml
 └── src
     └── Project.java
@@ -27,17 +28,17 @@ following...
 ...and the contents of `bathpack.toml` as follows...
 
 ```toml
-[user]
 username = "abc123"
-
-[source]
-root = "."
-src = { path = "{root}/src", pattern = "*.java" }
-
-[destination]
-root = "project-{username}"
+name = "project-{username}"
 archive = true
-src = "{root}"
+
+[sources]
+src = { path = "src", pattern = "*.java" }
+readme = "README.md"
+
+[destinations]
+src = "."
+readme = "."
 ```
 
 > Note: This is a provisional format for `bathpack.toml`, and will likely change.
@@ -46,9 +47,11 @@ src = "{root}"
 
 ```
 .
+├── README.md
 ├── bathpack.toml
 ├── project-abc123
-│   └── Project.java
+│   ├── Project.java
+│   └── README.md
 ├── project-abc123.zip
 └── src
     └── Project.java
