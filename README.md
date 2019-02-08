@@ -29,19 +29,19 @@ following...
 
 ```toml
 username = "abc123"
-name = "project-{username}"
-archive = true
 
 [sources]
 src = { path = "src", pattern = "*.java" }
 readme = "README.md"
 
-[destinations]
+[destination]
+name = "project-{username}"
+archive = true
+
+[destination.locations]
 src = "."
 readme = "."
 ```
-
-> Note: This is a provisional format for `bathpack.toml`, and will likely change.
 
 ...`bathpack` will produce the following:
 
