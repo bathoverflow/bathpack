@@ -16,6 +16,8 @@
 //  limitations under the License.
 //
 
+//! Parsing and structure of `bathpack.toml` configuration file.
+
 use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
@@ -30,6 +32,7 @@ pub struct Config {
     /// The user's University of Bath username.
     username: String,
     sources: BTreeMap<String, Source>,
+    destination: Destination,
 }
 
 impl Config {
@@ -63,6 +66,19 @@ pub enum Source {
         pattern: String,
     },
     File(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Destination {
+    name: String,
+    archive: bool,
+    locations: BTreeMap<String, DestLoc>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum DestLoc {
+    Folder(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -110,6 +126,14 @@ mod tests {
             [sources]
             test-folder = { path = "test_path", pattern = "test_pattern" }
             test-file = "test_file_name"
+            
+            [destination]
+            name = "test-{username}"
+            archive = true
+
+            [destination.locations]
+            test-folder = "."
+            test-file = "test-new-folder/subfolder"
         "#;
 
         let decoded: Result<Config> = Config::parse(toml_str);
@@ -127,9 +151,145 @@ mod tests {
             [sources]
             test-folder = { path = "test_path", pattern = "test_pattern" }
             test-file = "test_file_name"
+            
+            [destination]
+            name = "test-{username}"
+            archive = true
+
+            [destination.locations]
+            test-folder = "."
+            test-file = "test-new-folder/subfolder"
         "#;
 
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_err());
+    }
+    
+    /// Test that a configuration file with no `sources` table does not successfully parse.
+    #[test]
+    fn missing_sources() {
+        let toml_str = r#"
+            username = "user987"
+
+            [destination]
+            name = "test-{username}"
+            archive = true
+
+            [destination.locations]
+            test-folder = "."
+            test-file = "test-new-folder/subfolder"
+        "#;
+
+        let decoded: Result<Config> = Config::parse(toml_str);
+        assert!(decoded.is_err());
+    }
+    
+    /// Test that a configuration file with an empty `sources` table successfully parses.
+    #[test]
+    fn empty_sources() {
+        let toml_str = r#"
+            username = "user987"
+            
+            [sources]
+            
+            [destination]
+            name = "test-{username}"
+            archive = true
+            
+            [destination.locations]
+            test-folder = "."
+            test-file = "test-new-folder/subfolder"
+        "#;
+
+        let decoded: Result<Config> = Config::parse(toml_str);
+        assert!(decoded.is_ok());
+
+        let config = decoded.unwrap();
+        assert!(config.sources.is_empty());
+    }
+
+    /// Test that a configuration file with an empty `destination` table does not successfully
+    /// parse.
+    #[test]
+    fn empty_destination() {
+        let toml_str = r#"
+            username = "user987"
+            
+            [sources]
+            test-folder = { path = "test_path", pattern = "test_pattern" }
+            test-file = "test_file_name"
+            
+            [destination]
+        "#;
+
+        let decoded: Result<Config> = Config::parse(toml_str);
+        assert!(decoded.is_err());
+    }
+
+    /// Test that a configuration file with an empty `destination` table, apart from
+    /// `destination.locations`, does not successfully parse.
+    #[test]
+    fn empty_destination_with_locations() {
+        let toml_str = r#"
+            username = "user987"
+            
+            [sources]
+            test-folder = { path = "test_path", pattern = "test_pattern" }
+            test-file = "test_file_name"
+            
+            [destination]
+
+            [destination.locations]
+            test-folder = "."
+            test-file = "test-new-folder/subfolder"
+        "#;
+
+        let decoded: Result<Config> = Config::parse(toml_str);
+        assert!(decoded.is_err());
+    }
+    
+    /// Test that a configuration file with no `destination.locations` table does not successfully
+    /// parse.
+    #[test]
+    fn missing_destination_locations() {
+        let toml_str = r#"
+            username = "user987"
+            
+            [sources]
+            test-folder = { path = "test_path", pattern = "test_pattern" }
+            test-file = "test_file_name"
+            
+            [destination]
+            name = "test-{username}"
+            archive = true
+        "#;
+
+        let decoded: Result<Config> = Config::parse(toml_str);
+        assert!(decoded.is_err());
+    }
+    
+    /// Test that a configuration file with an empty `destination.locations` table successfully
+    /// parses.
+    #[test]
+    fn empty_destination_locations() {
+        let toml_str = r#"
+            username = "user987"
+            
+            [sources]
+            test-folder = { path = "test_path", pattern = "test_pattern" }
+            test-file = "test_file_name"
+            
+            [destination]
+            name = "test-{username}"
+            archive = true
+            
+            [destination.locations]
+        "#;
+
+        let decoded: Result<Config> = Config::parse(toml_str);
+        assert!(decoded.is_ok());
+
+        let config = decoded.unwrap();
+        assert!(config.destination.locations.is_empty());
     }
 }

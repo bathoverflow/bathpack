@@ -6,3 +6,14 @@ readme = "README.md"
 config = "bathpack.toml"
 cargo-toml = "Cargo.toml"
 license = "LICENSE"
+
+[destination]
+name = "bathpack-{username}"
+archive = true
+
+[destination.locations]
+src = "src"
+readme = "."
+config = "."
+cargo-toml = "."
+license = "."
