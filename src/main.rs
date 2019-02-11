@@ -26,6 +26,6 @@ fn main() {
     let config = read_config();
 
     if let Err(msg) = config.validate() {
-        eprintln!("Config validation failed: {}", msg);
+        eprintln!("Config error: {}", msg);
     }
 }

@@ -28,6 +28,26 @@ impl<'a> Validator<'a> {
     }
 
     pub fn validate(self) -> Result<(), String> {
-        unimplemented!()
+        // Check that every source in [sources] has a matching location in [destination.locations].
+        for source_key in self.config.sources.keys() {
+            if !self.config.destination.locations.contains_key(source_key) {
+                return Err(format!(
+                    "Key `{}` from [sources] does not exist in [destination.locations]",
+                    source_key
+                ));
+            }
+        }
+
+        // Check that every source in [destination.locations] has a matching location in [sources].
+        for dest_key in self.config.destination.locations.keys() {
+            if !self.config.sources.contains_key(dest_key) {
+                return Err(format!(
+                    "Key `{}` from [destination.locations] does not exist in [sources]",
+                    dest_key
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
