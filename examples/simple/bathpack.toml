@@ -1,0 +1,13 @@
+username = "abc123"
+
+[sources]
+src = { path = "src", pattern = "*.java" }
+readme = "README.md"
+
+[destination]
+name = "project-{username}"
+archive = true
+
+[destination.locations]
+src = "."
+readme = "."

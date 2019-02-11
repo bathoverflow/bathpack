@@ -1,0 +1,11 @@
+username = "abc123"
+
+[source]
+src = { path = "SRPN", pattern = "*.java" }
+
+[destination]
+root = "SRPN-{username}"
+archive = true
+
+[destination.locations]
+src = "."
