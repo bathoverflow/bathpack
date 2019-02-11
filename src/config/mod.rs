@@ -1,5 +1,5 @@
 //
-//  config.rs
+//  mod.rs
 //  bathpack
 //
 //  Created on 2019-02-07 by Søren Mortensen.
@@ -18,6 +18,10 @@
 
 //! Parsing and structure of `bathpack.toml` configuration file.
 
+mod validate;
+
+use self::validate::Validator;
+
 use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
@@ -33,11 +37,11 @@ pub fn read_config() -> Config {
         Ok(mut path) => {
             path.push("bathpack.toml");
             path
-        },
+        }
         Err(e) => {
             eprintln!("Could not access current directory: {}", e);
             exit(1);
-        },
+        }
     };
 
     match Config::parse_file(config_file) {
@@ -79,6 +83,12 @@ impl Config {
 
         Config::parse(contents)
     }
+
+    pub fn validate(&self) -> Result<()> {
+        Validator::from(self)
+            .validate()
+            .map_err(|msg| Error::Validation(msg))
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -105,15 +115,17 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    TomlError(toml::de::Error),
-    IoError(std::io::Error),
+    Toml(toml::de::Error),
+    Io(std::io::Error),
+    Validation(String),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::TomlError(ref toml_err) => write!(f, "{}", toml_err),
-            Error::IoError(ref io_err) => write!(f, "{}", io_err),
+            Error::Toml(ref toml_err) => write!(f, "{}", toml_err),
+            Error::Io(ref io_err) => write!(f, "{}", io_err),
+            Error::Validation(ref msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -122,13 +134,13 @@ impl std::error::Error for Error {}
 
 impl From<toml::de::Error> for Error {
     fn from(toml_error: toml::de::Error) -> Self {
-        Error::TomlError(toml_error)
+        Error::Toml(toml_error)
     }
 }
 
 impl From<std::io::Error> for Error {
     fn from(io_error: std::io::Error) -> Self {
-        Error::IoError(io_error)
+        Error::Io(io_error)
     }
 }
 

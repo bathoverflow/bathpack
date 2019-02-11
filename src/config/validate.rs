@@ -1,7 +1,8 @@
 //
-//  main.rs
+//  validate.rs
 //  bathpack
 //
+//  Created on 2019-02-11 by Søren Mortensen.
 //  Copyright (c) 2018 Søren Mortensen, Andrei Trandafir, Stavros Karantonis.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -15,17 +16,18 @@
 //  limitations under the License.
 //
 
-extern crate serde;
-extern crate toml;
+use super::Config;
 
-mod config;
+pub struct Validator<'a> {
+    config: &'a Config,
+}
 
-use config::{read_config, Config};
+impl<'a> Validator<'a> {
+    pub fn from(config: &'a Config) -> Validator<'a> {
+        Validator { config }
+    }
 
-fn main() {
-    let config = read_config();
-
-    if let Err(msg) = config.validate() {
-        eprintln!("Config validation failed: {}", msg);
+    pub fn validate(self) -> Result<(), String> {
+        unimplemented!()
     }
 }
