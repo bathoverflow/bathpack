@@ -16,6 +16,7 @@
 //
 
 extern crate serde;
+extern crate strfmt;
 extern crate toml;
 
 mod config;

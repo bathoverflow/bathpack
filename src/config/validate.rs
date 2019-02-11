@@ -16,7 +16,11 @@
 //  limitations under the License.
 //
 
+use strfmt::{FmtError, strfmt};
+
 use super::Config;
+
+use std::collections::HashMap;
 
 pub struct Validator<'a> {
     config: &'a Config,
@@ -46,6 +50,17 @@ impl<'a> Validator<'a> {
                     dest_key
                 ));
             }
+        }
+
+        let mut vars = HashMap::new();
+        vars.insert("username".to_string(), self.config.username.clone());
+
+        if let Err(fmt_err) = strfmt(&self.config.destination.name, &vars) {
+            return Err(match fmt_err {
+                FmtError::Invalid(msg) => format!("Value of `destination.name` contains invalid format: {}", msg),
+                FmtError::KeyError(msg) => format!("Key in `destination.name` format does not exist: {}", msg),
+                FmtError::TypeError(msg) => format!("Type incorrect: {}", msg),
+            })
         }
 
         Ok(())
