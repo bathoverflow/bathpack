@@ -126,7 +126,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// [config]: ./struct.Config.html
 #[derive(Debug)]
 pub enum Error {
+    /// Wraps a [`toml::de::Error`][tomlerr].
+    ///
+    /// [tomlerr]: ../../toml/de/struct.Error.html
     TomlError(toml::de::Error),
+    /// Wraps a [`std::io::Error`][ioerr].
+    ///
+    /// [ioerr]: https://doc.rust-lang.org/std/io/struct.Error.html
     IoError(std::io::Error),
 }
 
