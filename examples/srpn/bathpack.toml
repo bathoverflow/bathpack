@@ -1,12 +1,11 @@
-[user]
 username = "abc123"
 
 [source]
-root = "."
-src = { path = "{root}/SRPN", pattern = "*.java" }
+src = { path = "SRPN", pattern = "*.java" }
 
 [destination]
 root = "SRPN-{username}"
 archive = true
 
-src = "{root}"
+[destination.locations]
+src = "."
