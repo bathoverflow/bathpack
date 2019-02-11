@@ -25,6 +25,29 @@ use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::process::exit;
+
+/// Read and return the user's configuration file from the default location, printing an error and exiting on failure.
+pub fn read_config() -> Config {
+    let mut config_file = match std::env::current_dir() {
+        Ok(mut path) => {
+            path.push("bathpack.toml");
+            path
+        },
+        Err(e) => {
+            eprintln!("Could not access current directory: {}", e);
+            exit(1);
+        },
+    };
+
+    match Config::parse_file(config_file) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Could not read bathpack.toml: {}", e);
+            exit(1);
+        }
+    }
+}
 
 /// Specifies source & destination locations for files, and user information.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

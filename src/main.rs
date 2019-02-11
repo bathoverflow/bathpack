@@ -20,14 +20,8 @@ extern crate toml;
 
 mod config;
 
-use config::Config;
+use config::{Config, read_config};
 
 fn main() {
-    let mut config_path = std::env::current_dir().expect("Unable to access the current directory");
-    config_path.push("bathpack.toml");
-
-    let config = Config::parse_file(config_path).expect("Could not read bathpack.toml");
-    println!("{:#?}", config);
-
-    println!("{}", toml::to_string(&config).unwrap());
+    let config = read_config();
 }
