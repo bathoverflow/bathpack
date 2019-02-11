@@ -54,7 +54,9 @@ pub fn read_config() -> Config {
 pub struct Config {
     /// The user's University of Bath username.
     username: String,
+    /// Key-value pairs, where the key is the name of the source, and the value is the location (file or folder).
     sources: BTreeMap<String, Source>,
+    /// The destination for all files, including a list of locations.
     destination: Destination,
 }
 
@@ -81,31 +83,56 @@ impl Config {
     }
 }
 
+/// A source location - either a folder or a file.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Source {
+    /// A folder, interpreted as all files in that folder matching the given glob pattern. The folder location is
+    /// represented as a relative path to the folder in a string.
     Folder { path: String, pattern: String },
+    /// A file, stored as a relative path in a string.
     File(String),
 }
 
+/// The final destination of a Bathpack run, including the name and a list of destination locations.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Destination {
+    /// The name of the final folder/archive.
     name: String,
+    /// Whether to archive the folder.
     archive: bool,
+    /// Key-value pairs, where each key is the name of a source in a [`Config`][config], and each value is the location
+    /// to move that source to.
+    ///
+    /// [config]: ./struct.Config.html
     locations: BTreeMap<String, DestLoc>,
 }
 
+/// A destination location.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DestLoc {
+    /// A folder, stored as a relative path in a string.
     Folder(String),
 }
 
+/// Convenience alias for functions that return [`Error`][error]s.
+///
+/// [error]: ./enum.Error.html
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Errors to do with [`Config`][config] reading and parsing.
+///
+/// [config]: ./struct.Config.html
 #[derive(Debug)]
 pub enum Error {
+    /// Wraps a [`toml::de::Error`][tomlerr].
+    ///
+    /// [tomlerr]: ../../toml/de/struct.Error.html
     TomlError(toml::de::Error),
+    /// Wraps a [`std::io::Error`][ioerr].
+    ///
+    /// [ioerr]: https://doc.rust-lang.org/std/io/struct.Error.html
     IoError(std::io::Error),
 }
 
