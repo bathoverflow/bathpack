@@ -101,8 +101,10 @@ pub struct Destination {
     name: String,
     /// Whether to archive the folder.
     archive: bool,
-    /// Key-value pairs, where each key is the name of a source in a `Config`, and each value is the location to move
-    /// that source to.
+    /// Key-value pairs, where each key is the name of a source in a [`Config`][config], and each value is the location
+    /// to move that source to.
+    ///
+    /// [config]: ./struct.Config.html
     locations: BTreeMap<String, DestLoc>,
 }
 
@@ -114,9 +116,14 @@ pub enum DestLoc {
     Folder(String),
 }
 
+/// Convenience alias for functions that return [`Error`][error]s.
+///
+/// [error]: ./enum.Error.html
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Errors to do with `Config` reading and parsing.
+/// Errors to do with [`Config`][config] reading and parsing.
+///
+/// [config]: ./struct.Config.html
 #[derive(Debug)]
 pub enum Error {
     TomlError(toml::de::Error),
