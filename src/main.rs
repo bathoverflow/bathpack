@@ -15,6 +15,13 @@
 //  limitations under the License.
 //
 
+extern crate serde;
+extern crate toml;
+
+mod config;
+
+use config::{Config, read_config};
+
 fn main() {
-    println!("Hello, world!");
+    let config = read_config();
 }
