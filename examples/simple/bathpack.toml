@@ -1,12 +1,13 @@
-[user]
 username = "abc123"
 
-[source]
-root = "."
-src = { path = "{root}/src", pattern = "*.java" }
+[sources]
+src = { path = "src", pattern = "*.java" }
+readme = "README.md"
 
 [destination]
-root = "project-{username}"
+name = "project-{username}"
 archive = true
 
-src = "{root}"
+[destination.locations]
+src = "."
+readme = "."
