@@ -25,19 +25,37 @@
 //! `bathpack.toml` or inside/alongside Bathpack. This way, configurations for specific coursework submissions can be
 //! distributed to multiple users.
 
+extern crate glob;
 extern crate serde;
 extern crate strfmt;
 extern crate toml;
 
 mod config;
+mod file_map;
 
-use config::{read_config, Config};
+use config::read_config;
+use file_map::FileMap;
+
+use std::process::exit;
 
 /// Reads in a configuration file.
 fn main() {
-    let config = read_config();
+    let current_dir = match std::env::current_dir() {
+        Ok(path) => path,
+        Err(e) => {
+            eprintln!("Could not access current directory: {}", e);
+            exit(1);
+        }
+    };
+
+    let config = read_config(&current_dir);
 
     if let Err(msg) = config.validate() {
         eprintln!("Config error: {}", msg);
     }
+
+    let mut file_map = FileMap::new(&config, current_dir);
+    file_map.build();
+
+    println!("{:#?}", file_map.into_paths().collect::<Vec<_>>());
 }

@@ -24,25 +24,18 @@ use self::validate::Validator;
 
 use serde::{Deserialize, Serialize};
 
+use std::collections::btree_map::Values as BTreeValues;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 
 /// Read and return the user's configuration file from the default location, printing an error and exiting on failure.
-pub fn read_config() -> Config {
-    let mut config_file = match std::env::current_dir() {
-        Ok(mut path) => {
-            path.push("bathpack.toml");
-            path
-        }
-        Err(e) => {
-            eprintln!("Could not access current directory: {}", e);
-            exit(1);
-        }
-    };
+pub fn read_config(current_dir: &PathBuf) -> Config {
+    let mut config_file = current_dir.clone();
+    config_file.push("bathpack.toml");
 
     match Config::parse_file(config_file) {
         Ok(c) => c,
@@ -90,6 +83,10 @@ impl Config {
         Validator::from(self)
             .validate()
             .map_err(|msg| Error::Validation(msg))
+    }
+
+    pub fn sources(&self) -> BTreeValues<String, Source> {
+        self.sources.values()
     }
 }
 

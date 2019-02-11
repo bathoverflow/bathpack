@@ -23,7 +23,7 @@
 //! - Keys in `destination.locations` have matching keys in `sources`.
 //! - Format of `destination.name` is valid.
 
-use strfmt::{FmtError, strfmt};
+use strfmt::{strfmt, FmtError};
 
 use super::Config;
 
@@ -67,10 +67,15 @@ impl<'a> Validator<'a> {
         // Try formatting it, and if we get an error, return a message describing the problem.
         if let Err(fmt_err) = strfmt(&self.config.destination.name, &vars) {
             return Err(match fmt_err {
-                FmtError::Invalid(msg) => format!("Value of `destination.name` contains invalid format: {}", msg),
-                FmtError::KeyError(msg) => format!("Key in `destination.name` format does not exist: {}", msg),
+                FmtError::Invalid(msg) => format!(
+                    "Value of `destination.name` contains invalid format: {}",
+                    msg
+                ),
+                FmtError::KeyError(msg) => {
+                    format!("Key in `destination.name` format does not exist: {}", msg)
+                }
                 FmtError::TypeError(msg) => format!("Type incorrect: {}", msg),
-            })
+            });
         }
 
         // No problems found.
