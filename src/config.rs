@@ -38,16 +38,16 @@ pub struct Config {
 impl Config {
     /// Attempt to parse a `Config` from a string containing some TOML data.
     pub fn parse<T>(toml_str: T) -> Result<Config>
-        where
-            T: AsRef<str>,
+    where
+        T: AsRef<str>,
     {
         toml::from_str(toml_str.as_ref()).map_err(|e| e.into())
     }
 
     /// Attempt to parse a `Config` from a file containing TOML data at the location `path`.
     pub fn parse_file<P>(path: P) -> Result<Config>
-        where
-            P: AsRef<Path>,
+    where
+        P: AsRef<Path>,
     {
         let mut file = File::open(path)?;
 
@@ -61,10 +61,7 @@ impl Config {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Source {
-    Folder {
-        path: String,
-        pattern: String,
-    },
+    Folder { path: String, pattern: String },
     File(String),
 }
 
@@ -164,7 +161,7 @@ mod tests {
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_err());
     }
-    
+
     /// Test that a configuration file with no `sources` table does not successfully parse.
     #[test]
     fn missing_sources() {
@@ -183,7 +180,7 @@ mod tests {
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_err());
     }
-    
+
     /// Test that a configuration file with an empty `sources` table successfully parses.
     #[test]
     fn empty_sources() {
@@ -247,7 +244,7 @@ mod tests {
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_err());
     }
-    
+
     /// Test that a configuration file with no `destination.locations` table does not successfully
     /// parse.
     #[test]
@@ -267,7 +264,7 @@ mod tests {
         let decoded: Result<Config> = Config::parse(toml_str);
         assert!(decoded.is_err());
     }
-    
+
     /// Test that a configuration file with an empty `destination.locations` table successfully
     /// parses.
     #[test]
