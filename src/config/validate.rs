@@ -16,12 +16,20 @@
 //  limitations under the License.
 //
 
+//! Validation of internal consistency of the user's configuration.
+//!
+//! This includes:
+//! - Keys in `sources` have matching keys in `destination.locations`.
+//! - Keys in `destination.locations` have matching keys in `sources`.
+//! - Format of `destination.name` is valid.
+
 use strfmt::{FmtError, strfmt};
 
 use super::Config;
 
 use std::collections::HashMap;
 
+/// Validates the contents of a `Config`.
 pub struct Validator<'a> {
     config: &'a Config,
 }
@@ -52,9 +60,11 @@ impl<'a> Validator<'a> {
             }
         }
 
+        // Check that the format of destination.name is correct.
         let mut vars = HashMap::new();
         vars.insert("username".to_string(), self.config.username.clone());
 
+        // Try formatting it, and if we get an error, return a message describing the problem.
         if let Err(fmt_err) = strfmt(&self.config.destination.name, &vars) {
             return Err(match fmt_err {
                 FmtError::Invalid(msg) => format!("Value of `destination.name` contains invalid format: {}", msg),
@@ -63,6 +73,7 @@ impl<'a> Validator<'a> {
             })
         }
 
+        // No problems found.
         Ok(())
     }
 }
