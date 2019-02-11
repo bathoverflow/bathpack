@@ -54,7 +54,9 @@ pub fn read_config() -> Config {
 pub struct Config {
     /// The user's University of Bath username.
     username: String,
+    /// Key-value pairs, where the key is the name of the source, and the value is the location (file or folder).
     sources: BTreeMap<String, Source>,
+    /// The destination for all files, including a list of locations.
     destination: Destination,
 }
 
@@ -81,28 +83,40 @@ impl Config {
     }
 }
 
+/// A source location - either a folder or a file.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Source {
+    /// A folder, interpreted as all files in that folder matching the given glob pattern. The folder location is
+    /// represented as a relative path to the folder in a string.
     Folder { path: String, pattern: String },
+    /// A file, stored as a relative path in a string.
     File(String),
 }
 
+/// The final destination of a Bathpack run, including the name and a list of destination locations.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Destination {
+    /// The name of the final folder/archive.
     name: String,
+    /// Whether to archive the folder.
     archive: bool,
+    /// Key-value pairs, where each key is the name of a source in a `Config`, and each value is the location to move
+    /// that source to.
     locations: BTreeMap<String, DestLoc>,
 }
 
+/// A destination location.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DestLoc {
+    /// A folder, stored as a relative path in a string.
     Folder(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Errors to do with `Config` reading and parsing.
 #[derive(Debug)]
 pub enum Error {
     TomlError(toml::de::Error),

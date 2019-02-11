@@ -15,6 +15,16 @@
 //  limitations under the License.
 //
 
+//! Bathpack is a tool for automating the packaging of coursework files for submission at the University of Bath,
+//! specifically for the BSc/MComp Computer Science degree.
+//!
+//! Bathpack works by reading a configuration file in TOML format, called `bathpack.toml` by default, describing the
+//! locations of source files and destination locations, as well as details about the final folder/archive.
+//!
+//! Optionally, information about the destination can be specified separately, such as in another TOML file alongside
+//! `bathpack.toml` or inside/alongside Bathpack. This way, configurations for specific coursework submissions can be
+//! distributed to multiple users.
+
 extern crate serde;
 extern crate toml;
 
@@ -22,6 +32,7 @@ mod config;
 
 use config::{Config, read_config};
 
+/// Reads in a configuration file.
 fn main() {
     let config = read_config();
 }
