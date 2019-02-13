@@ -1,9 +1,9 @@
 //
-//  mod.rs
+//  config/mod.rs
 //  bathpack
 //
 //  Created on 2019-02-07 by Søren Mortensen.
-//  Copyright (c) 2018 Søren Mortensen, Andrei Trandafir, Stavros Karantonis.
+//  Copyright (c) 2019 Søren Mortensen, Andrei Trandafir, Stavros Karantonis.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 //  in compliance with the License.  You may obtain a copy of the License at
@@ -18,10 +18,7 @@
 
 //! Parsing and structure of `bathpack.toml` configuration file.
 
-mod validate;
-
-use self::validate::Validator;
-
+use failure::{Error, Fail};
 use serde::{Deserialize, Serialize};
 
 use std::collections::btree_map::Values as BTreeValues;
@@ -32,18 +29,13 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 
-/// Read and return the user's configuration file from the default location, printing an error and exiting on failure.
-pub fn read_config(current_dir: &PathBuf) -> Config {
+/// Read and return the user's configuration file from the default location, printing an error
+/// and exiting on failure.
+pub fn read_config(current_dir: &PathBuf) -> Result<Config, Error> {
     let mut config_file = current_dir.clone();
     config_file.push("bathpack.toml");
 
-    match Config::parse_file(config_file) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Could not read bathpack.toml: {}", e);
-            exit(1);
-        }
-    }
+    Config::parse_file(config_file)
 }
 
 /// Specifies source & destination locations for files, and user information.
@@ -51,7 +43,8 @@ pub fn read_config(current_dir: &PathBuf) -> Config {
 pub struct Config {
     /// The user's University of Bath username.
     username: String,
-    /// Key-value pairs, where the key is the name of the source, and the value is the location (file or folder).
+    /// Key-value pairs, where the key is the name of the source, and the value is the location
+    /// (file or folder).
     sources: BTreeMap<String, Source>,
     /// The destination for all files, including a list of locations.
     destination: Destination,
@@ -59,30 +52,22 @@ pub struct Config {
 
 impl Config {
     /// Attempt to parse a `Config` from a string containing some TOML data.
-    pub fn parse<T>(toml_str: T) -> Result<Config>
+    pub fn parse<T>(toml_str: T) -> Result<Config, Error>
     where
         T: AsRef<str>,
     {
-        toml::from_str(toml_str.as_ref()).map_err(|e| e.into())
+        toml::from_str(toml_str.as_ref()).map_err(failure::Error::from)
     }
 
     /// Attempt to parse a `Config` from a file containing TOML data at the location `path`.
-    pub fn parse_file<P>(path: P) -> Result<Config>
+    pub fn parse_file<P>(path: P) -> Result<Config, Error>
     where
         P: AsRef<Path>,
     {
-        let mut file = File::open(path)?;
-
         let mut contents = String::new();
-        file.read_to_string(&mut contents)?;
+        File::open(path)?.read_to_string(&mut contents)?;
 
-        Config::parse(contents)
-    }
-
-    pub fn validate(&self) -> Result<()> {
-        Validator::from(self)
-            .validate()
-            .map_err(|msg| Error::Validation(msg))
+        Config::parse(&contents)
     }
 
     pub fn sources(&self) -> BTreeValues<String, Source> {
@@ -94,8 +79,8 @@ impl Config {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Source {
-    /// A folder, interpreted as all files in that folder matching the given glob pattern. The folder location is
-    /// represented as a relative path to the folder in a string.
+    /// A folder, interpreted as all files in that folder matching the given glob pattern. The
+    /// folder location is represented as a relative path to the folder in a string.
     Folder { path: String, pattern: String },
     /// A file, stored as a relative path in a string.
     File(String),
@@ -108,8 +93,8 @@ pub struct Destination {
     name: String,
     /// Whether to archive the folder.
     archive: bool,
-    /// Key-value pairs, where each key is the name of a source in a [`Config`][config], and each value is the location
-    /// to move that source to.
+    /// Key-value pairs, where each key is the name of a source in a [`Config`][config], and each
+    /// value is the location to move that source to.
     ///
     /// [config]: ./struct.Config.html
     locations: BTreeMap<String, DestLoc>,
@@ -123,48 +108,21 @@ pub enum DestLoc {
     Folder(String),
 }
 
-/// Convenience alias for functions that return [`Error`][error]s.
-///
-/// [error]: ./enum.Error.html
-pub type Result<T> = std::result::Result<T, Error>;
-
 /// Errors to do with [`Config`][config] reading and parsing.
 ///
 /// [config]: ./struct.Config.html
-#[derive(Debug)]
-pub enum Error {
+#[derive(Debug, Fail)]
+pub enum ConfigError {
     /// Wraps a [`toml::de::Error`][tomlerr].
     ///
     /// [tomlerr]: ../../toml/de/struct.Error.html
-    Toml(toml::de::Error),
-    /// Wraps a [`std::io::Error`][ioerr].
-    ///
-    /// [ioerr]: https://doc.rust-lang.org/std/io/struct.Error.html
-    Io(std::io::Error),
-    Validation(String),
+    #[fail(display = "error while parsing config: {}", toml_err)]
+    Toml { toml_err: toml::de::Error },
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Toml(ref toml_err) => write!(f, "{}", toml_err),
-            Error::Io(ref io_err) => write!(f, "{}", io_err),
-            Error::Validation(ref msg) => write!(f, "{}", msg),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl From<toml::de::Error> for Error {
-    fn from(toml_error: toml::de::Error) -> Self {
-        Error::Toml(toml_error)
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(io_error: std::io::Error) -> Self {
-        Error::Io(io_error)
+impl From<toml::de::Error> for ConfigError {
+    fn from(toml_err: toml::de::Error) -> Self {
+        ConfigError::Toml { toml_err }
     }
 }
 

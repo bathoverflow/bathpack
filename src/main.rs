@@ -2,7 +2,7 @@
 //  main.rs
 //  bathpack
 //
-//  Copyright (c) 2018 Søren Mortensen, Andrei Trandafir, Stavros Karantonis.
+//  Copyright (c) 2019 Søren Mortensen, Andrei Trandafir, Stavros Karantonis.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
 //  in compliance with the License.  You may obtain a copy of the License at
@@ -15,16 +15,18 @@
 //  limitations under the License.
 //
 
-//! Bathpack is a tool for automating the packaging of coursework files for submission at the University of Bath,
-//! specifically for the BSc/MComp Computer Science degree.
+//! Bathpack is a tool for automating the packaging of coursework files for submission at the
+//! University of Bath, specifically for the BSc/MComp Computer Science degree.
 //!
-//! Bathpack works by reading a configuration file in TOML format, called `bathpack.toml` by default, describing the
-//! locations of source files and destination locations, as well as details about the final folder/archive.
+//! Bathpack works by reading a configuration file in TOML format, called `bathpack.toml` by
+//! default, describing the locations of source files and destination locations, as well as
+//! details about the final folder/archive.
 //!
-//! Optionally, information about the destination can be specified separately, such as in another TOML file alongside
-//! `bathpack.toml` or inside/alongside Bathpack. This way, configurations for specific coursework submissions can be
-//! distributed to multiple users.
+//! Optionally, information about the destination can be specified separately, such as in another
+//! TOML file alongside `bathpack.toml` or inside/alongside Bathpack. This way, configurations
+//! for specific coursework submissions can be distributed to multiple users.
 
+extern crate failure;
 extern crate glob;
 extern crate serde;
 extern crate strfmt;
@@ -33,29 +35,28 @@ extern crate toml;
 mod config;
 mod file_map;
 
+use failure::{Error, Fail};
+
 use config::read_config;
-use file_map::FileMap;
+use file_map::FileMapBuilder;
 
 use std::process::exit;
 
 /// Reads in a configuration file.
 fn main() {
-    let current_dir = match std::env::current_dir() {
-        Ok(path) => path,
-        Err(e) => {
-            eprintln!("Could not access current directory: {}", e);
-            exit(1);
-        }
-    };
+    let result = run();
 
-    let config = read_config(&current_dir);
-
-    if let Err(msg) = config.validate() {
-        eprintln!("Config error: {}", msg);
+    if let Err(err) = result {
+        eprintln!("{}", err);
+        exit(1);
     }
+}
 
-    let mut file_map = FileMap::new(&config, current_dir);
-    file_map.build();
+fn run() -> Result<(), Error> {
+    let current_dir = std::env::current_dir()?;
+    let config = read_config(&current_dir)?;
 
-    println!("{:#?}", file_map.into_paths().collect::<Vec<_>>());
+    let mut file_map = FileMapBuilder::from(config).build()?;
+
+    Ok(())
 }
