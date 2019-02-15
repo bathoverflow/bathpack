@@ -1,5 +1,5 @@
 //
-//  config/mod.rs
+//  config.rs
 //  bathpack
 //
 //  Created on 2019-02-07 by Søren Mortensen.

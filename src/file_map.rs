@@ -1,5 +1,5 @@
 //
-//  file_map/mod.rs
+//  file_map.rs
 //  bathpack
 //
 //  Created on 2019-02-12 by Søren Mortensen.
