@@ -37,7 +37,7 @@ extern crate toml;
 mod config;
 mod file_map;
 
-use failure::{Error, Fail};
+use failure::Error;
 
 use config::read_config;
 use file_map::FileMapBuilder;
@@ -58,7 +58,8 @@ fn run() -> Result<(), Error> {
     let current_dir = std::env::current_dir()?;
     let config = read_config(&current_dir)?;
 
-    let mut file_map = FileMapBuilder::from(config, current_dir).build()?;
+    let file_map = FileMapBuilder::from(config, current_dir).build()?;
+    println!("{:#?}", file_map);
 
     Ok(())
 }

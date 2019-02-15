@@ -19,12 +19,11 @@
 use crate::config::{Config, DestLoc, Source};
 
 use failure::{Error, Fail};
-use glob::{GlobError, Pattern, PatternError};
+use glob::{GlobError, PatternError};
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::fs::File;
-use std::path::Path;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::path::PathBuf;
 
 macro_rules! path {
@@ -66,18 +65,11 @@ impl FileMapBuilder {
     }
 
     pub fn build(self) -> Result<FileMap, Error> {
-        println!("{:#?}", self);
-
-        let ve = self
-            .expand_paths()?
+        self.expand_paths()?
             .verify_patterns()?
             .pair_locations()?
             .flatten_locations()?
-            .verify_existence()?;
-
-        println!("{:#?}", ve);
-
-        Ok(ve)
+            .verify_existence()
     }
 
     fn expand_paths(self) -> Result<PathsExpanded, Error> {
@@ -279,9 +271,8 @@ struct MissingSource(String);
 struct MissingDest(String);
 
 impl PatternsVerified {
-    fn pair_locations(mut self) -> Result<LocationsPaired, Error> {
-        let paired = BTreeMap::<PathBuf, PathBuf>::new();
-        let mut sources = self.sources;
+    fn pair_locations(self) -> Result<LocationsPaired, Error> {
+        let sources = self.sources;
         let mut dests = self.dests;
 
         let mut pairs = Vec::<(VerifiedSource, VerifiedDest)>::new();
@@ -289,7 +280,7 @@ impl PatternsVerified {
         let mut missing_dests = Vec::new();
 
         for (key, source) in sources {
-            let dest = dests
+            let _ = dests
                 .remove(&key)
                 .ok_or_else(|| missing_sources.push(MissingSource(key)))
                 .map(|dest| pairs.push((source, dest)));
@@ -378,36 +369,58 @@ impl LocationsFlattened {
 
 #[derive(Debug, Fail)]
 pub enum FileMapError {
-    #[fail(display = "invalid path: {:?}", path)]
-    InvalidPath { path: PathBuf },
-    #[fail(display = "could not get parent folder for file {:?}", path)]
-    NoParent { path: PathBuf },
-    #[fail(display = "invalid pattern format: {}", err)]
-    Pattern { err: PatternError },
-    #[fail(display = "errors while matching glob patterns: {:#?}", errs)]
-    Glob { errs: Vec<GlobError> },
-    #[fail(display = "no matches for glob pattern: {}", pattern)]
-    NoMatches { pattern: String },
-    #[fail(
-        display = "sources `{:?}` specified in [destination.locations] do not exist",
-        keys
-    )]
-    MissingSources { keys: Vec<String> },
-    #[fail(
-        display = "destinations `{:?}` specified in [sources] do not exist",
-        keys
-    )]
-    MissingDests { keys: Vec<String> },
-    #[fail(
-        display = "sources `{:?}` and destinations `{:?}` do not exist",
-        srcs, dests
-    )]
+//    #[fail(display = "invalid path: {:?}", path)]
+    InvalidPath {
+        path: PathBuf,
+    },
+//    #[fail(display = "could not get parent folder for file {:?}", path)]
+    NoParent {
+        path: PathBuf,
+    },
+//    #[fail(display = "invalid pattern format: {}", err)]
+    Pattern {
+        err: PatternError,
+    },
+//    #[fail(display = "errors while matching glob patterns: {:#?}", errs)]
+    Glob {
+        errs: Vec<GlobError>,
+    },
+//    #[fail(display = "no matches for glob pattern: {}", pattern)]
+    NoMatches {
+        pattern: String,
+    },
+//    #[fail(
+//        display = "sources `{:?}` specified in [destination.locations] do not exist",
+//        keys
+//    )]
+    MissingSources {
+        keys: Vec<String>,
+    },
+//    #[fail(
+//        display = "destinations `{:?}` specified in [sources] do not exist",
+//        keys
+//    )]
+    MissingDests {
+        keys: Vec<String>,
+    },
+//    #[fail(
+//        display = "sources `{:?}` and destinations `{:?}` do not exist",
+//        srcs, dests
+//    )]
     MissingFiles {
         srcs: Vec<String>,
         dests: Vec<String>,
     },
-    #[fail(display = "files {:?} do not exist", files)]
-    NonexistentFiles { files: Vec<String> },
+//    #[fail(display = "files {:?} do not exist", files)]
+    NonexistentFiles {
+        files: Vec<String>,
+    },
+}
+
+impl Display for FileMapError {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "")
+    }
 }
 
 impl From<Vec<GlobError>> for FileMapError {
