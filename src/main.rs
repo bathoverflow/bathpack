@@ -26,6 +26,8 @@
 //! TOML file alongside `bathpack.toml` or inside/alongside Bathpack. This way, configurations
 //! for specific coursework submissions can be distributed to multiple users.
 
+#![allow(dead_code)]
+
 extern crate failure;
 extern crate glob;
 extern crate serde;
@@ -56,7 +58,7 @@ fn run() -> Result<(), Error> {
     let current_dir = std::env::current_dir()?;
     let config = read_config(&current_dir)?;
 
-    let mut file_map = FileMapBuilder::from(config).build()?;
+    let mut file_map = FileMapBuilder::from(config, current_dir).build()?;
 
     Ok(())
 }

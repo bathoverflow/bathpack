@@ -23,11 +23,9 @@ use serde::{Deserialize, Serialize};
 
 use std::collections::btree_map::Values as BTreeValues;
 use std::collections::BTreeMap;
-use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::exit;
 
 /// Read and return the user's configuration file from the default location, printing an error
 /// and exiting on failure.
@@ -42,12 +40,12 @@ pub fn read_config(current_dir: &PathBuf) -> Result<Config, Error> {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     /// The user's University of Bath username.
-    username: String,
+    pub username: String,
     /// Key-value pairs, where the key is the name of the source, and the value is the location
     /// (file or folder).
-    sources: BTreeMap<String, Source>,
+    pub sources: BTreeMap<String, Source>,
     /// The destination for all files, including a list of locations.
-    destination: Destination,
+    pub destination: Destination,
 }
 
 impl Config {
@@ -86,18 +84,34 @@ pub enum Source {
     File(String),
 }
 
+impl Source {
+    pub fn is_folder(&self) -> bool {
+        match self {
+            Source::Folder { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_file(&self) -> bool {
+        match self {
+            Source::File(..) => true,
+            _ => false,
+        }
+    }
+}
+
 /// The final destination of a Bathpack run, including the name and a list of destination locations.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Destination {
     /// The name of the final folder/archive.
-    name: String,
+    pub name: String,
     /// Whether to archive the folder.
-    archive: bool,
+    pub archive: bool,
     /// Key-value pairs, where each key is the name of a source in a [`Config`][config], and each
     /// value is the location to move that source to.
     ///
     /// [config]: ./struct.Config.html
-    locations: BTreeMap<String, DestLoc>,
+    pub locations: BTreeMap<String, DestLoc>,
 }
 
 /// A destination location.
