@@ -49,7 +49,7 @@ fn main() {
     let result = run();
 
     if let Err(err) = result {
-        eprintln!("{}", err);
+        eprintln!("ERROR: {}", err);
         exit(1);
     }
 }

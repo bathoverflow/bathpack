@@ -20,6 +20,7 @@ use crate::config::{Config, DestLoc, Source};
 
 use failure::{Error, Fail};
 use glob::{GlobError, PatternError};
+use strfmt::FmtError as StrFmtError;
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -65,32 +66,63 @@ impl FileMapBuilder {
     }
 
     pub fn build(self) -> Result<FileMap, Error> {
-        self.expand_paths()?
-            .verify_patterns()?
+        self.format_destination()?
+            .expand_paths()?
             .pair_locations()?
             .flatten_locations()?
+            .verify_scope()?
             .verify_existence()
     }
 
-    fn expand_paths(self) -> Result<PathsExpanded, Error> {
+    fn format_destination(self) -> Result<DestFormatted, Error> {
+        use strfmt::strfmt;
+
         let root_dir = self.root_dir;
-        let dest_dir = path!(root_dir, self.config.destination.name);
+
         let username = self.config.username;
+        let dest_pat = self.config.destination.name;
+
+        let mut vars = HashMap::new();
+        vars.insert("username".to_string(), username);
+
+        let dest = strfmt(&dest_pat, &vars).map_err(FileMapError::FormatError)?;
+        let dest_dir = path!(root_dir, dest);
+
         let archive = self.config.destination.archive;
 
-        let sources = Self::expand_sources(self.config.sources, &root_dir)?;
-        let destinations = Self::expand_dests(
-            self.config.destination.locations,
-            &path!(root_dir, dest_dir),
-        )?;
+        Ok(DestFormatted {
+            root_dir,
+            dest_dir,
+            archive,
+            sources: self.config.sources,
+            dests: self.config.destination.locations,
+        })
+    }
+}
+
+struct DestFormatted {
+    root_dir: PathBuf,
+    dest_dir: PathBuf,
+    archive: bool,
+    sources: BTreeMap<String, Source>,
+    dests: BTreeMap<String, DestLoc>,
+}
+
+impl DestFormatted {
+    fn expand_paths(self) -> Result<PathsExpanded, Error> {
+        let root_dir = self.root_dir;
+        let dest_dir = self.dest_dir;
+        let archive = self.archive;
+
+        let sources = Self::expand_sources(self.sources, &root_dir)?;
+        let destinations = Self::expand_dests(self.dests, &path!(root_dir, dest_dir))?;
 
         Ok(PathsExpanded {
             root_dir,
             dest_dir,
-            username,
             archive,
             sources,
-            destinations,
+            dests: destinations,
         })
     }
 
@@ -114,12 +146,7 @@ impl FileMapBuilder {
                     let path = path!(base_path, pattern.as_str());
 
                     // Convert the pattern path to a String.
-                    let path_string = path
-                        .to_str()
-                        .map(str::to_owned)
-                        // Don't bother to tell the user why the path was invalid, just spit the
-                        // path back at them, they can figure it out.
-                        .ok_or(FileMapError::InvalidPath { path: path.clone() })?;
+                    let path_string = path.to_str().expect("path was invalid Unicode").to_owned();
 
                     // Glob search using the constructed path/pattern, splitting the results into
                     // successful matches and errors.
@@ -140,7 +167,7 @@ impl FileMapBuilder {
                         // Otherwise, return the matches.
                         let paths = matches.into_iter().map(Result::unwrap).collect();
 
-                        ExpandedSource {
+                        ExpandedSource::FileMatches {
                             base: base_path,
                             items: paths,
                         }
@@ -150,13 +177,10 @@ impl FileMapBuilder {
                     let item = path!(root_dir, raw_path).canonicalize()?;
                     let base = item
                         .parent()
-                        .map(|p| p.to_path_buf())
-                        .ok_or(FileMapError::NoParent { path: item.clone() })?;
+                        .expect("couldn't find parent folder of source file")
+                        .to_path_buf();
 
-                    ExpandedSource {
-                        base: base.to_path_buf(),
-                        items: vec![item],
-                    }
+                    ExpandedSource::File { base, item }
                 }
             };
 
@@ -188,94 +212,29 @@ impl FileMapBuilder {
 struct PathsExpanded {
     root_dir: PathBuf,
     dest_dir: PathBuf,
-    username: String,
     archive: bool,
     sources: BTreeMap<String, ExpandedSource>,
-    destinations: BTreeMap<String, ExpandedDest>,
+    dests: BTreeMap<String, ExpandedDest>,
 }
 
 #[derive(Clone, Debug)]
-struct ExpandedSource {
-    base: PathBuf,
-    items: Vec<PathBuf>,
+enum ExpandedSource {
+    FileMatches { base: PathBuf, items: Vec<PathBuf> },
+    File { base: PathBuf, item: PathBuf },
 }
 
 #[derive(Debug)]
 struct ExpandedDest(PathBuf);
 
-impl PathsExpanded {
-    fn verify_patterns(self) -> Result<PatternsVerified, Error> {
-        use strfmt::strfmt;
-
-        let mut vars = HashMap::new();
-        vars.insert("username".to_owned(), &self.username);
-
-        let root_dir = path!(strfmt(self.root_dir.to_str().unwrap(), &vars)?);
-        let dest_dir = path!(strfmt(self.dest_dir.to_str().unwrap(), &vars)?);
-
-        let sources = self.verify_sources()?;
-        let dests = self.verify_destinations()?;
-
-        Ok(PatternsVerified {
-            root_dir,
-            dest_dir,
-            username: self.username,
-            archive: self.archive,
-            sources,
-            dests,
-        })
-    }
-
-    fn verify_sources(&self) -> Result<BTreeMap<String, VerifiedSource>, Error> {
-        Ok(self.sources.clone())
-    }
-
-    fn verify_destinations(&self) -> Result<BTreeMap<String, VerifiedDest>, Error> {
-        use strfmt::strfmt;
-
-        let mut verified_dests = BTreeMap::new();
-
-        let mut vars = HashMap::new();
-        vars.insert("username".to_owned(), &self.username);
-
-        for (key, dest) in self.destinations.iter() {
-            let verified: VerifiedDest = {
-                let path = path!(strfmt(dest.0.to_str().unwrap(), &vars)?);
-
-                VerifiedDest(path)
-            };
-
-            verified_dests.insert(key.clone(), verified);
-        }
-
-        Ok(verified_dests)
-    }
-}
-
-#[derive(Debug)]
-struct PatternsVerified {
-    root_dir: PathBuf,
-    dest_dir: PathBuf,
-    username: String,
-    archive: bool,
-    sources: BTreeMap<String, VerifiedSource>,
-    dests: BTreeMap<String, VerifiedDest>,
-}
-
-type VerifiedSource = ExpandedSource;
-
-#[derive(Clone, Debug)]
-struct VerifiedDest(PathBuf);
-
 struct MissingSource(String);
 struct MissingDest(String);
 
-impl PatternsVerified {
+impl PathsExpanded {
     fn pair_locations(self) -> Result<LocationsPaired, Error> {
         let sources = self.sources;
         let mut dests = self.dests;
 
-        let mut pairs = Vec::<(VerifiedSource, VerifiedDest)>::new();
+        let mut pairs = Vec::<(ExpandedSource, ExpandedDest)>::new();
         let mut missing_sources = Vec::new();
         let mut missing_dests = Vec::new();
 
@@ -308,7 +267,7 @@ struct LocationsPaired {
     root_dir: PathBuf,
     dest_dir: PathBuf,
     archive: bool,
-    pairs: Vec<(VerifiedSource, VerifiedDest)>,
+    pairs: Vec<(ExpandedSource, ExpandedDest)>,
 }
 
 impl LocationsPaired {
@@ -316,14 +275,23 @@ impl LocationsPaired {
         let mut flattened_pairs = Vec::new();
 
         for (source, dest) in self.pairs {
-            let base = source.base;
-
-            for source_path in source.items {
-                let relative_to_base = source_path
-                    .strip_prefix(&base)
-                    .expect("prefix could not be stripped from source path");
-                let dest_path = path!(dest.0, relative_to_base);
-                flattened_pairs.push((source_path, dest_path));
+            match source {
+                ExpandedSource::FileMatches { base, items } => {
+                    for source_path in items {
+                        let relative_to_base = source_path
+                            .strip_prefix(&base)
+                            .expect("prefix could not be stripped from source path");
+                        let dest_path = path!(dest.0, relative_to_base);
+                        flattened_pairs.push((source_path, dest_path));
+                    }
+                }
+                ExpandedSource::File { base, item } => {
+                    let relative_to_base = item
+                        .strip_prefix(&base)
+                        .expect("prefix could not be stripped from source path");
+                    let dest_path = path!(dest.0, relative_to_base);
+                    flattened_pairs.push((item, dest_path));
+                }
             }
         }
 
@@ -345,6 +313,36 @@ struct LocationsFlattened {
 }
 
 impl LocationsFlattened {
+    fn verify_scope(self) -> Result<ScopeVerified, Error> {
+        let outside: Vec<String> = self
+            .pairs
+            .iter()
+            .map(|(_, d)| d)
+            .filter(|&p| !p.starts_with(&self.dest_dir))
+            .map(|p| p.to_str().unwrap().to_owned())
+            .collect();
+
+        if !outside.is_empty() {
+            Err(FileMapError::Scope(outside).into())
+        } else {
+            Ok(ScopeVerified {
+                root_dir: self.root_dir,
+                dest_dir: self.dest_dir,
+                archive: self.archive,
+                pairs: self.pairs,
+            })
+        }
+    }
+}
+
+struct ScopeVerified {
+    root_dir: PathBuf,
+    dest_dir: PathBuf,
+    archive: bool,
+    pairs: Vec<(PathBuf, PathBuf)>,
+}
+
+impl ScopeVerified {
     fn verify_existence(self) -> Result<FileMap, Error> {
         let nonexistent: Vec<String> = self
             .pairs
@@ -369,49 +367,45 @@ impl LocationsFlattened {
 
 #[derive(Debug, Fail)]
 pub enum FileMapError {
-//    #[fail(display = "invalid path: {:?}", path)]
-    InvalidPath {
-        path: PathBuf,
-    },
-//    #[fail(display = "could not get parent folder for file {:?}", path)]
-    NoParent {
-        path: PathBuf,
-    },
-//    #[fail(display = "invalid pattern format: {}", err)]
+    /// The destination name could not be formatted, due to the given reason.
+    FormatError(StrFmtError),
+    /// The files at the paths given are outside the scope of the root directory.
+    Scope(Vec<String>),
+    //    #[fail(display = "invalid pattern format: {}", err)]
     Pattern {
         err: PatternError,
     },
-//    #[fail(display = "errors while matching glob patterns: {:#?}", errs)]
+    //    #[fail(display = "errors while matching glob patterns: {:#?}", errs)]
     Glob {
         errs: Vec<GlobError>,
     },
-//    #[fail(display = "no matches for glob pattern: {}", pattern)]
+    //    #[fail(display = "no matches for glob pattern: {}", pattern)]
     NoMatches {
         pattern: String,
     },
-//    #[fail(
-//        display = "sources `{:?}` specified in [destination.locations] do not exist",
-//        keys
-//    )]
+    //    #[fail(
+    //        display = "sources `{:?}` specified in [destination.locations] do not exist",
+    //        keys
+    //    )]
     MissingSources {
         keys: Vec<String>,
     },
-//    #[fail(
-//        display = "destinations `{:?}` specified in [sources] do not exist",
-//        keys
-//    )]
+    //    #[fail(
+    //        display = "destinations `{:?}` specified in [sources] do not exist",
+    //        keys
+    //    )]
     MissingDests {
         keys: Vec<String>,
     },
-//    #[fail(
-//        display = "sources `{:?}` and destinations `{:?}` do not exist",
-//        srcs, dests
-//    )]
+    //    #[fail(
+    //        display = "sources `{:?}` and destinations `{:?}` do not exist",
+    //        srcs, dests
+    //    )]
     MissingFiles {
         srcs: Vec<String>,
         dests: Vec<String>,
     },
-//    #[fail(display = "files {:?} do not exist", files)]
+    //    #[fail(display = "files {:?} do not exist", files)]
     NonexistentFiles {
         files: Vec<String>,
     },
@@ -419,7 +413,23 @@ pub enum FileMapError {
 
 impl Display for FileMapError {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "")
+        match *self {
+            FileMapError::FormatError(ref fmt_err) => match *fmt_err {
+                StrFmtError::Invalid(ref msg) => write!(f, "Destination format invalid: {}", msg),
+                StrFmtError::KeyError(ref msg) => {
+                    write!(f, "Destination format key error: {}", msg)
+                }
+                StrFmtError::TypeError(ref msg) => {
+                    write!(f, "Destination format type error: {}", msg)
+                }
+            },
+            FileMapError::Scope(ref paths) => write!(
+                f,
+                "Some destination paths were outside the destination directory:\n{}",
+                paths.join("\n")
+            ),
+            _ => write!(f, ""),
+        }
     }
 }
 
