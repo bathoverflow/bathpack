@@ -369,7 +369,7 @@ impl ScopeVerified {
 pub enum FileMapError {
     /// The destination name could not be formatted, due to the given reason.
     FormatError(StrFmtError),
-    /// The files at the paths given are outside the scope of the root directory.
+    /// The files at the paths given are outside the scope of the destination directory.
     Scope(Vec<String>),
     //    #[fail(display = "invalid pattern format: {}", err)]
     Pattern {
