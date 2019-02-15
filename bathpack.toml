@@ -13,7 +13,7 @@ archive = true
 
 [destination.locations]
 src = "src"
-readme = "."
-config = "."
-cargo-toml = "."
-license = "."
+readme = ""
+config = ""
+cargo-toml = ""
+license = ""
