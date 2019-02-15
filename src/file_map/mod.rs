@@ -23,6 +23,7 @@ use glob::{GlobError, Pattern, PatternError};
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -45,11 +46,12 @@ macro_rules! path {
     };
 }
 
+#[derive(Debug)]
 pub struct FileMap {
-    src_path: PathBuf,
-    dest_path: PathBuf,
+    root_dir: PathBuf,
+    dest_dir: PathBuf,
     archive: bool,
-    map: BTreeMap<PathBuf, PathBuf>,
+    map: Vec<(PathBuf, PathBuf)>,
 }
 
 #[derive(Debug)]
@@ -66,11 +68,16 @@ impl FileMapBuilder {
     pub fn build(self) -> Result<FileMap, Error> {
         println!("{:#?}", self);
 
-        let pl = self.expand_paths()?.verify_patterns()?.pair_locations()?;
+        let ve = self
+            .expand_paths()?
+            .verify_patterns()?
+            .pair_locations()?
+            .flatten_locations()?
+            .verify_existence()?;
 
-        println!("{:#?}", pl);
+        println!("{:#?}", ve);
 
-        pl.verify_existence()
+        Ok(ve)
     }
 
     fn expand_paths(self) -> Result<PathsExpanded, Error> {
@@ -206,14 +213,20 @@ struct ExpandedDest(PathBuf);
 
 impl PathsExpanded {
     fn verify_patterns(self) -> Result<PatternsVerified, Error> {
+        use strfmt::strfmt;
+
+        let mut vars = HashMap::new();
+        vars.insert("username".to_owned(), &self.username);
+
+        let root_dir = path!(strfmt(self.root_dir.to_str().unwrap(), &vars)?);
+        let dest_dir = path!(strfmt(self.dest_dir.to_str().unwrap(), &vars)?);
+
         let sources = self.verify_sources()?;
         let dests = self.verify_destinations()?;
 
-        // TODO: Pattern replacement for root_dir and dest_dir
-
         Ok(PatternsVerified {
-            root_dir: self.root_dir,
-            dest_dir: self.dest_dir,
+            root_dir,
+            dest_dir,
             username: self.username,
             archive: self.archive,
             sources,
@@ -259,7 +272,7 @@ struct PatternsVerified {
 
 type VerifiedSource = ExpandedSource;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct VerifiedDest(PathBuf);
 
 struct MissingSource(String);
@@ -308,8 +321,58 @@ struct LocationsPaired {
 }
 
 impl LocationsPaired {
+    fn flatten_locations(self) -> Result<LocationsFlattened, Error> {
+        let mut flattened_pairs = Vec::new();
+
+        for (source, dest) in self.pairs {
+            let base = source.base;
+
+            for source_path in source.items {
+                let relative_to_base = source_path
+                    .strip_prefix(&base)
+                    .expect("prefix could not be stripped from source path");
+                let dest_path = path!(dest.0, relative_to_base);
+                flattened_pairs.push((source_path, dest_path));
+            }
+        }
+
+        Ok(LocationsFlattened {
+            root_dir: self.root_dir,
+            dest_dir: self.dest_dir,
+            archive: self.archive,
+            pairs: flattened_pairs,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct LocationsFlattened {
+    root_dir: PathBuf,
+    dest_dir: PathBuf,
+    archive: bool,
+    pairs: Vec<(PathBuf, PathBuf)>,
+}
+
+impl LocationsFlattened {
     fn verify_existence(self) -> Result<FileMap, Error> {
-        unimplemented!()
+        let nonexistent: Vec<String> = self
+            .pairs
+            .iter()
+            .map(|(s, _)| s)
+            .filter(|p| !p.exists())
+            .map(|p| p.to_str().unwrap().to_owned())
+            .collect();
+
+        if !nonexistent.is_empty() {
+            Err(FileMapError::NonexistentFiles { files: nonexistent }.into())
+        } else {
+            Ok(FileMap {
+                root_dir: self.root_dir,
+                dest_dir: self.dest_dir,
+                archive: self.archive,
+                map: self.pairs,
+            })
+        }
     }
 }
 
@@ -343,6 +406,8 @@ pub enum FileMapError {
         srcs: Vec<String>,
         dests: Vec<String>,
     },
+    #[fail(display = "files {:?} do not exist", files)]
+    NonexistentFiles { files: Vec<String> },
 }
 
 impl From<Vec<GlobError>> for FileMapError {
