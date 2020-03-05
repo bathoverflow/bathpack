@@ -30,7 +30,7 @@ extern crate toml;
 
 mod config;
 
-use config::{Config, read_config};
+use config::{read_config, Config};
 
 /// Reads in a configuration file.
 fn main() {

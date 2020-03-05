@@ -33,11 +33,11 @@ pub fn read_config() -> Config {
         Ok(mut path) => {
             path.push("bathpack.toml");
             path
-        },
+        }
         Err(e) => {
             eprintln!("Could not access current directory: {}", e);
             exit(1);
-        },
+        }
     };
 
     match Config::parse_file(config_file) {

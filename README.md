@@ -1,5 +1,10 @@
 # bathpack
 
+[![Build Status]][builds.sr.ht]
+
+[Build Status]: https://builds.sr.ht/~nerosnm/bathpack.svg
+[builds.sr.ht]: https://builds.sr.ht/~nerosnm/bathpack
+
 `bathpack` is a tool for packaging files for coursework submission at the University of Bath.
 
 ## Project Overview
