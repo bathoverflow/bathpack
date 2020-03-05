@@ -1,0 +1,19 @@
+image: archlinux
+packages:
+    - rustup
+sources:
+    - git@github.com:bathoverflow/bathpack
+tasks:
+    - install: |
+        rustup install nightly
+        rustup default nightly
+        rustup component add rustfmt --toolchain nightly
+    - build: |
+        cd bathpack
+        cargo build --all
+    - test: |
+        cd bathpack
+        cargo test --all
+    - lint: |
+        cd bathpack
+        cargo +nightly fmt --all -- --check
